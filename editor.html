@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Editor Anime</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .form-section { margin-bottom: 2rem; }
+        .episode-card { margin-bottom: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Editor Anime <small class="text-muted">Template Sederhana</small></h1>
+        
+        <div class="card">
+            <div class="card-body">
+                <form id="anime-form">
+                    <div class="form-section">
+                        <h3>Informasi Dasar</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Judul Anime*</label>
+                                <input type="text" class="form-control" name="title" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tipe*</label>
+                                <select class="form-select" name="type" required>
+                                    <option value="TV">TV Series</option>
+                                    <option value="Movie">Movie</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tahun</label>
+                                <input type="number" class="form-control" name="year">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Gambar</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Poster URL*</label>
+                                <input type="url" class="form-control" name="poster" required>
+                                <small class="text-muted">Upload ke Imgur lalu paste link di sini</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Banner URL</label>
+                                <input type="url" class="form-control" name="banner">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Episode</h3>
+                        <div id="episodes-container">
+                            <!-- Episode akan ditambahkan di sini -->
+                        </div>
+                        <button type="button" class="btn btn-secondary mt-2" onclick="addEpisode()">
+                            + Tambah Episode
+                        </button>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">Simpan ke GitHub</button>
+                        <a href="index.html" class="btn btn-outline-secondary ms-2">Kembali</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Episode (Hidden) -->
+    <div id="episode-template" class="episode-card d-none">
+        <div class="row">
+            <div class="col-md-1">
+                <label class="form-label">No.</label>
+                <input type="number" class="form-control" name="episode-number" min="1" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Judul</label>
+                <input type="text" class="form-control" name="episode-title">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Video URL*</label>
+                <input type="url" class="form-control" name="episode-url" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Thumbnail</label>
+                <input type="url" class="form-control" name="episode-thumbnail">
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeEpisode(this)">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/editor.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

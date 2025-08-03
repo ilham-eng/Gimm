@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Anime List</title>
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+</head>
+<body>
+    <h1>Daftar Anime</h1>
+    <a href="editor.html" class="button">Edit Data</a>
+    <div id="anime-list"></div>
+    
+    <script src="scripts/github.js"></script>
+    <script>
+    fetch('data/anime_list.json')
+        .then(r => r.json())
+        .then(data => {
+            let html = '';
+            data.anime_list.forEach(anime => {
+                html += `
+                <article>
+                    <img src="${anime.poster}" width="200">
+                    <h3>${anime.title}</h3>
+                    <p>${anime.description}</p>
+                </article>`;
+            });
+            document.getElementById('anime-list').innerHTML = html;
+        });
+    </script>
+</body>
+</html>
