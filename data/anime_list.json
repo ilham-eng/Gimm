@@ -1,0 +1,29 @@
+{
+  "anime_list": [
+    {
+      "id": 1,
+      "title": "Contoh Anime",
+      "poster": "https://i.imgur.com/contoh.jpg",
+      "banner": "https://i.imgur.com/banner-contoh.jpg",
+      "description": "Deskripsi singkat anime",
+      "type": "TV",
+      "status": "Ongoing",
+      "year": 2023,
+      "rating": 8.5,
+      "genres": [1, 2],
+      "episodes": [
+        {
+          "id": 101,
+          "number": 1,
+          "title": "Episode Pertama",
+          "url": "https://example.com/ep1.mp4",
+          "thumbnail": "https://i.imgur.com/thumb1.jpg"
+        }
+      ]
+    }
+  ],
+  "genres": [
+    {"id": 1, "name": "Action"},
+    {"id": 2, "name": "Adventure"}
+  ]
+}
