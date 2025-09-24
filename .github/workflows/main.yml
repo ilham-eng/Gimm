@@ -13,28 +13,68 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         
-    - name: Setup JDK 11
+    - name: Setup JDK 17
       uses: actions/setup-java@v3
       with:
-        java-version: '11'
+        java-version: '17'
         distribution: 'temurin'
         
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
+      uses: android-actions/setup-android@v3
       
     - name: Install Cordova
       run: |
-        npm install -g cordova
+        npm install -g cordova@latest
         cordova telemetry off
+        cordova --version
         
+    - name: Install project dependencies
+      run: |
+        npm install
+        cordova platform add android@latest
+        
+    - name: Build Android APK (Debug)
+      run: |
+        cordova build android --debug
+        echo "✅ Debug APK built successfully"
+        
+    - name: Build Android APK (Release)
+      run: |
+        cordova build android --release
+        echo "✅ Release APK built successfully"
+        
+    - name: List generated APKs
+      run: |
+        echo "📱 APK Files:"
+        find platforms/android -name "*.apk" -type f | while read file; do
+          echo "➡️ $file"
+          ls -la "$file"
+        done
+        
+    - name: Upload APK artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cordova-apks
+        path: |
+          platforms/android/app/build/outputs/apk/debug/
+          platforms/android/app/build/outputs/apk/release/
+        retention-days: 30
+        compression-level: 9
+        overwrite: true
+        
+    - name: Show success message
+      run: |
+        echo "🎉 Build berhasil!"
+        echo "📥 Download APK dari tab 'Artifacts' di atas"
+        echo "⏰ APK akan tersimpan selama 30 hari"        
     - name: Install project dependencies
       run: |
         npm install
