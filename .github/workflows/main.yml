@@ -1,82 +1,77 @@
-name: Cordova Android Build
+name: Cordova Cloud Build
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04  # Gunakan Ubuntu 24.04
-    
+    runs-on: ubuntu-24.04
+
     steps:
-    - name: 📥 Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: ⎔ Setup Node.js
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
-        
-    - name: ☕ Setup Java JDK
-      uses: actions/setup-java@v4
+        cache: 'npm'  # Enable caching
+
+    - name: Cache node modules
+      uses: actions/cache@v3
       with:
-        java-version: '17'
-        distribution: 'temurin'
-        
-    - name: 🤖 Setup Android SDK
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Setup Android SDK
       run: |
-        # Install Android Command Line Tools
+        sudo apt-get update
+        sudo apt-get install -y wget unzip openjdk-17-jdk
+        
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-*.zip -d android-sdk
+        unzip -q commandlinetools-linux-11076708_latest.zip -d android-sdk
         mkdir -p android-sdk/cmdline-tools/latest
         mv android-sdk/cmdline-tools/* android-sdk/cmdline-tools/latest/
         
-        # Set environment variables
-        echo "ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
         echo "ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
-        echo "$GITHUB_WORKSPACE/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$GITHUB_WORKSPACE/android-sdk/platform-tools" >> $GITHUB_PATH
+        echo "PATH=$GITHUB_WORKSPACE/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
         
-        # Accept licenses
-        yes | $GITHUB_WORKSPACE/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-        
-    - name: 📦 Install Cordova CLI
+        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$GITHUB_WORKSPACE/android-sdk "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+
+    - name: Install dependencies and generate lock file
       run: |
-        npm install -g cordova@latest
-        cordova --version
+        # Generate package-lock.json jika belum ada
+        if [ ! -f package-lock.json ]; then
+          echo "Generating package-lock.json..."
+          npm install --package-lock-only
+        fi
         
-    - name: 🔧 Install project dependencies
+        # Install dependencies
+        npm ci  # Menggunakan package-lock.json
+
+    - name: Install Cordova globally
       run: |
-        npm install
-        cordova platform add android@latest
-        
-    - name: 🏗️ Build Android APK
+        npm install -g cordova
+
+    - name: Add Android platform
       run: |
-        cordova build android --debug
-        cordova build android --release
-        echo "✅ Build completed!"
-        
-    - name: 📊 List APK files
+        cordova platform add android
+
+    - name: Build APK
       run: |
-        echo "Generated APK files:"
-        find platforms/android -name "*.apk" -exec ls -lh {} \;
-        
-    - name: ⬆️ Upload APK artifacts
+        cordova build android
+        echo "✅ Build successful!"
+
+    - name: List generated files
+      run: |
+        find platforms/android -name "*.apk" -type f
+
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: android-apks
-        path: |
-          platforms/android/app/build/outputs/apk/debug/
-          platforms/android/app/build/outputs/apk/release/
+        name: cordova-apk
+        path: platforms/android/app/build/outputs/apk/
         retention-days: 30
-        if-no-files-found: error
-        
-    - name: ✅ Build Summary
-      run: |
-        echo "🎉 Cordova Cloud Build Successful!"
-        echo "📱 APK files are available in the Artifacts section"
-        echo "⏰ They will be stored for 30 days"
