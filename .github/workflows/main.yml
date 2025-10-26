@@ -1,77 +1,9 @@
-name: Cordova Cloud Build
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+name: RDP Session
+on: [workflow_dispatch]
 
 jobs:
-  build:
-    runs-on: ubuntu-24.04
-
+  rdp:
+    runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'  # Enable caching
-
-    - name: Cache node modules
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-
-    - name: Setup Android SDK
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y wget unzip openjdk-17-jdk
-        
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip -d android-sdk
-        mkdir -p android-sdk/cmdline-tools/latest
-        mv android-sdk/cmdline-tools/* android-sdk/cmdline-tools/latest/
-        
-        echo "ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk" >> $GITHUB_ENV
-        echo "PATH=$GITHUB_WORKSPACE/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-        
-        yes | android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$GITHUB_WORKSPACE/android-sdk "platforms;android-33" "build-tools;33.0.0" "platform-tools"
-
-    - name: Install dependencies and generate lock file
-      run: |
-        # Generate package-lock.json jika belum ada
-        if [ ! -f package-lock.json ]; then
-          echo "Generating package-lock.json..."
-          npm install --package-lock-only
-        fi
-        
-        # Install dependencies
-        npm ci  # Menggunakan package-lock.json
-
-    - name: Install Cordova globally
-      run: |
-        npm install -g cordova
-
-    - name: Add Android platform
-      run: |
-        cordova platform add android
-
-    - name: Build APK
-      run: |
-        cordova build android
-        echo "✅ Build successful!"
-
-    - name: List generated files
-      run: |
-        find platforms/android -name "*.apk" -type f
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: cordova-apk
-        path: platforms/android/app/build/outputs/apk/
-        retention-days: 30
+    - name: Setup RDP
+      uses: mxschmitt/action-tmate@v3
