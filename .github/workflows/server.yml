@@ -1,0 +1,177 @@
+name: Persistent Server
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy-server:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Verify files exist
+      run: |
+        echo "Current directory: $(pwd)"
+        echo "Files in repository:"
+        ls -la
+        echo "Checking for package.json..."
+        if [ -f "package.json" ]; then
+          echo "✅ package.json exists"
+          cat package.json
+        else
+          echo "❌ package.json not found - creating now..."
+          cat > package.json << EOF
+          {
+            "name": "gimm-server",
+            "version": "1.0.0",
+            "description": "Persistent server for GitHub Actions",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js"
+            },
+            "dependencies": {
+              "express": "^4.18.2"
+            }
+          }
+          EOF
+          echo "✅ package.json created"
+        fi
+        
+    - name: Install dependencies
+      run: |
+        echo "Installing dependencies..."
+        npm install
+        echo "✅ Dependencies installed"
+        
+    - name: Create server file if not exists
+      run: |
+        if [ ! -f "server.js" ]; then
+          echo "Creating server.js..."
+          cat > server.js << 'EOF'
+          const express = require('express');
+          const fs = require('fs').promises;
+          const path = require('path');
+          
+          const app = express();
+          const PORT = 3000;
+          const DATA_FILE = path.join(__dirname, 'data.json');
+          
+          app.use(express.json());
+          
+          // Load persistent data
+          async function loadData() {
+            try {
+              const data = await fs.readFile(DATA_FILE, 'utf8');
+              return JSON.parse(data);
+            } catch (error) {
+              return { messages: [], visitors: 0 };
+            }
+          }
+          
+          // Save persistent data
+          async function saveData(data) {
+            await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+          }
+          
+          app.get('/', async (req, res) => {
+            const data = await loadData();
+            data.visitors += 1;
+            await saveData(data);
+            
+            res.json({
+              message: '🚀 Server is running!',
+              visitors: data.visitors,
+              messages: data.messages,
+              timestamp: new Date().toISOString(),
+              uptime: process.uptime()
+            });
+          });
+          
+          app.post('/message', async (req, res) => {
+            const { text } = req.body;
+            const data = await loadData();
+            
+            data.messages.push({
+              text,
+              timestamp: new Date().toISOString(),
+              id: Date.now()
+            });
+            
+            await saveData(data);
+            
+            res.json({
+              success: true,
+              message: 'Message saved persistently!',
+              totalMessages: data.messages.length
+            });
+          });
+          
+          app.get('/messages', async (req, res) => {
+            const data = await loadData();
+            res.json(data.messages);
+          });
+          
+          // Initialize data file
+          async function initialize() {
+            try {
+              await loadData();
+              console.log('Data file initialized');
+            } catch (error) {
+              const initialData = { messages: [], visitors: 0 };
+              await saveData(initialData);
+            }
+          }
+          
+          initialize().then(() => {
+            app.listen(PORT, () => {
+              console.log(`✅ Server running on port ${PORT}`);
+              console.log(`📊 Data will be saved in: ${DATA_FILE}`);
+            });
+          });
+          EOF
+          echo "✅ server.js created"
+        else
+          echo "✅ server.js already exists"
+        fi
+        
+    - name: Start server and test
+      run: |
+        echo "Starting server..."
+        npm start &
+        
+        echo "Waiting for server to start..."
+        sleep 10
+        
+        echo "Testing server..."
+        curl -f http://localhost:3000 || echo "Server test failed"
+        curl -X POST http://localhost:3000/message \
+          -H "Content-Type: application/json" \
+          -d '{"text":"Hello from GitHub Actions!"}' || echo "Message test failed"
+          
+    - name: Save persistent data as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: server-data
+        path: |
+          data.json
+          package.json
+          server.js
+        retention-days: 30
+        
+    - name: Commit persistent data back to repo
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data.json
+        git diff --staged --quiet || git commit -m "chore: update persistent server data"
+        git push
