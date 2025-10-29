@@ -1,12 +1,10 @@
-name: Persistent Server
+name: Server with Serveo SSH Tunnel
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
-  deploy-server:
+  serveo-server:
     runs-on: ubuntu-latest
     
     steps:
@@ -20,132 +18,77 @@ jobs:
         
     - name: Create package.json
       run: |
-        cat << "JSON" > package.json
-        {
-          "name": "gimm-server",
-          "version": "1.0.0",
-          "description": "Persistent server for GitHub Actions",
-          "main": "server.js",
-          "scripts": {
-            "start": "node server.js"
-          },
-          "dependencies": {
-            "express": "^4.18.2"
-          }
-        }
-        JSON
-        echo "✅ package.json created"
+        echo '{"name":"gimm-server","version":"1.0.0","scripts":{"start":"node server.js"},"dependencies":{"express":"^4.18.2"}}' > package.json
         
     - name: Install dependencies
-      run: |
-        npm install
-        echo "✅ Dependencies installed"
+      run: npm install
         
     - name: Create server.js
       run: |
-        cat << "JAVASCRIPT" > server.js
+        cat << "EOF" > server.js
         const express = require('express');
-        const fs = require('fs').promises;
-        const path = require('path');
-
         const app = express();
         const PORT = 3000;
-
         app.use(express.json());
-
-        let visitorCount = 0;
-        const messages = [];
-
+        let visitors = 0;
         app.get('/', (req, res) => {
-          visitorCount++;
+          visitors++;
           res.json({
-            message: '🚀 Server is running successfully!',
-            visitors: visitorCount,
-            totalMessages: messages.length,
+            message: '🚀 Server with SSH Tunnel!',
+            visitors: visitors,
             timestamp: new Date().toISOString(),
-            status: 'active'
+            public_url: process.env.SERVEO_URL || 'http://localhost:3000'
           });
         });
-
-        app.get('/messages', (req, res) => {
-          res.json({
-            messages: messages,
-            count: messages.length
-          });
-        });
-
-        app.post('/messages', (req, res) => {
-          const { text, author = 'Anonymous' } = req.body;
-          
-          if (!text) {
-            return res.status(400).json({ error: 'Text is required' });
-          }
-
-          const newMessage = {
-            id: Date.now(),
-            text: text,
-            author: author,
-            timestamp: new Date().toISOString()
-          };
-
-          messages.push(newMessage);
-
-          res.json({
-            success: true,
-            message: 'Message saved successfully!',
-            data: newMessage,
-            totalMessages: messages.length
-          });
-        });
-
-        app.get('/status', (req, res) => {
-          res.json({
-            status: '🟢 Online',
-            visitors: visitorCount,
-            messages: messages.length,
-            uptime: process.uptime(),
-            memory: process.memoryUsage()
-          });
-        });
-
         app.listen(PORT, () => {
-          console.log('✅ Server running on port ' + PORT);
-          console.log('📊 Endpoints available:');
-          console.log('   GET  /');
-          console.log('   GET  /messages');
-          console.log('   POST /messages');
-          console.log('   GET  /status');
+          console.log('Server running on port ' + PORT);
         });
-        JAVASCRIPT
-        echo "✅ server.js created"
+        EOF
         
-    - name: Start and test server
+    - name: Setup SSH tunnel with Serveo
+      run: |
+        echo "🔗 Setting up SSH tunnel with Serveo..."
+        ssh -o StrictHostKeyChecking=no -R 80:localhost:3000 serveo.net 2>&1 | \
+        while read line; do
+          echo "$line"
+          if echo "$line" | grep -q "forwarding"; then
+            SERVEO_URL=$(echo "$line" | grep -oE 'https://[a-zA-Z0-9.-]+\.serveo\.net')
+            echo "SERVEO_URL=$SERVEO_URL" >> $GITHUB_ENV
+            echo "🌐 Public URL: $SERVEO_URL"
+          fi
+        done &
+        TUNNEL_PID=$!
+        echo "TUNNEL_PID=$TUNNEL_PID" >> $GITHUB_ENV
+        sleep 10
+        
+    - name: Start server and test
       run: |
         echo "🔧 Starting server..."
         npm start &
+        SERVER_PID=$!
+        echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
         
-        echo "⏳ Waiting for server to start..."
         sleep 5
         
-        echo "🧪 Testing server endpoints..."
+        if [ -n "$SERVEO_URL" ]; then
+          echo "🧪 Testing via Serveo..."
+          curl -f "$SERVEO_URL" || echo "Serveo test failed"
+        else
+          echo "🧪 Testing via localhost..."
+          curl -f http://localhost:3000
+        fi
         
-        # Test home endpoint
-        echo "📡 Testing / endpoint..."
-        curl -f http://localhost:3000
+    - name: Display URLs
+      run: |
+        echo "🎉 ================================="
+        echo "🎉 SERVER DEPLOYMENT COMPLETE!"
+        echo "🎉 ================================="
+        if [ -n "$SERVEO_URL" ]; then
+          echo "🌐 Serveo URL: $SERVEO_URL"
+        fi
+        echo "🔗 Local URL: http://localhost:3000"
+        echo "⏰ Server will run for 1 hour"
+        echo "🎉 ================================="
         
-        echo ""
-        
-        # Test status endpoint
-        echo "📊 Testing /status endpoint..."
-        curl -f http://localhost:3000/status
-        
-        echo ""
-        
-        # Test message posting
-        echo "💬 Testing message posting..."
-        curl -X POST http://localhost:3000/messages \
-          -H "Content-Type: application/json" \
-          -d '{"text":"Hello from GitHub Actions!", "author":"GitHub Bot"}'
-          
-        echo ""
-        echo "✅ All tests completed"
+    - name: Keep alive
+      run: sleep 3600
