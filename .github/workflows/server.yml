@@ -17,116 +17,64 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        # HAPUS cache: 'npm' untuk sementara
         
-    - name: Create package.json if not exists
+    - name: Create package.json
       run: |
-        if [ ! -f "package.json" ]; then
-          echo "📦 Creating package.json..."
-          cat > package.json << EOF
-          {
-            "name": "gimm-server",
-            "version": "1.0.0",
-            "description": "Persistent server for GitHub Actions",
-            "main": "server.js",
-            "scripts": {
-              "start": "node server.js",
-              "dev": "node server.js"
-            },
-            "dependencies": {
-              "express": "^4.18.2"
-            },
-            "keywords": ["server", "github-actions"],
-            "license": "MIT"
+        cat << "JSON" > package.json
+        {
+          "name": "gimm-server",
+          "version": "1.0.0",
+          "description": "Persistent server for GitHub Actions",
+          "main": "server.js",
+          "scripts": {
+            "start": "node server.js"
+          },
+          "dependencies": {
+            "express": "^4.18.2"
           }
-          EOF
-          echo "✅ package.json created"
-        else
-          echo "✅ package.json already exists"
-          cat package.json
-        fi
-        
-    - name: Generate package-lock.json
-      run: |
-        echo "🔧 Generating package-lock.json..."
-        npm install --package-lock-only
-        echo "✅ package-lock.json generated"
-        ls -la | grep package
+        }
+        JSON
+        echo "✅ package.json created"
         
     - name: Install dependencies
       run: |
-        echo "📥 Installing dependencies..."
-        npm ci  # Gunakan npm ci untuk install yang konsisten
+        npm install
         echo "✅ Dependencies installed"
         
-    - name: Create server file
+    - name: Create server.js
       run: |
-        echo "🚀 Creating server.js..."
-        cat > server.js << 'EOF'
+        cat << "JAVASCRIPT" > server.js
         const express = require('express');
         const fs = require('fs').promises;
         const path = require('path');
 
         const app = express();
         const PORT = 3000;
-        const DATA_FILE = path.join(__dirname, 'server-data.json');
 
-        // Middleware
         app.use(express.json());
-        app.use(express.static('.'));
 
-        // In-memory storage (will persist in data file)
-        let serverData = {
-          visitors: 0,
-          messages: [],
-          serverStartTime: new Date().toISOString()
-        };
+        let visitorCount = 0;
+        const messages = [];
 
-        // Load data from file
-        async function loadData() {
-          try {
-            const data = await fs.readFile(DATA_FILE, 'utf8');
-            serverData = { ...serverData, ...JSON.parse(data) };
-            console.log('📂 Data loaded from file');
-          } catch (error) {
-            console.log('📂 No existing data file, starting fresh');
-          }
-        }
-
-        // Save data to file
-        async function saveData() {
-          try {
-            await fs.writeFile(DATA_FILE, JSON.stringify(serverData, null, 2));
-            console.log('💾 Data saved to file');
-          } catch (error) {
-            console.error('❌ Error saving data:', error);
-          }
-        }
-
-        // Routes
         app.get('/', (req, res) => {
-          serverData.visitors++;
-          saveData(); // Save on each visit
-          
+          visitorCount++;
           res.json({
-            message: '🎉 Server is running successfully!',
-            status: 'active',
-            visitors: serverData.visitors,
-            totalMessages: serverData.messages.length,
-            serverUptime: process.uptime(),
-            startTime: serverData.serverStartTime,
-            timestamp: new Date().toISOString()
+            message: '🚀 Server is running successfully!',
+            visitors: visitorCount,
+            totalMessages: messages.length,
+            timestamp: new Date().toISOString(),
+            status: 'active'
           });
         });
 
         app.get('/messages', (req, res) => {
           res.json({
-            messages: serverData.messages,
-            count: serverData.messages.length
+            messages: messages,
+            count: messages.length
           });
         });
 
-        app.post('/messages', async (req, res) => {
+        app.post('/messages', (req, res) => {
           const { text, author = 'Anonymous' } = req.body;
           
           if (!text) {
@@ -135,43 +83,40 @@ jobs:
 
           const newMessage = {
             id: Date.now(),
-            text,
-            author,
+            text: text,
+            author: author,
             timestamp: new Date().toISOString()
           };
 
-          serverData.messages.push(newMessage);
-          await saveData();
+          messages.push(newMessage);
 
           res.json({
             success: true,
-            message: 'Message saved!',
+            message: 'Message saved successfully!',
             data: newMessage,
-            totalMessages: serverData.messages.length
+            totalMessages: messages.length
           });
         });
 
         app.get('/status', (req, res) => {
           res.json({
             status: '🟢 Online',
-            visitors: serverData.visitors,
-            messages: serverData.messages.length,
+            visitors: visitorCount,
+            messages: messages.length,
             uptime: process.uptime(),
             memory: process.memoryUsage()
           });
         });
 
-        // Initialize server
-        async function initialize() {
-          await loadData();
-          app.listen(PORT, () => {
-            console.log(`🚀 Server running on http://localhost:${PORT}`);
-            console.log(`💾 Data file: ${DATA_FILE}`);
-          });
-        }
-
-        initialize();
-        EOF
+        app.listen(PORT, () => {
+          console.log('✅ Server running on port ' + PORT);
+          console.log('📊 Endpoints available:');
+          console.log('   GET  /');
+          console.log('   GET  /messages');
+          console.log('   POST /messages');
+          console.log('   GET  /status');
+        });
+        JAVASCRIPT
         echo "✅ server.js created"
         
     - name: Start and test server
@@ -180,43 +125,27 @@ jobs:
         npm start &
         
         echo "⏳ Waiting for server to start..."
-        sleep 8
+        sleep 5
         
         echo "🧪 Testing server endpoints..."
         
         # Test home endpoint
         echo "📡 Testing / endpoint..."
-        curl -f http://localhost:3000 || echo "Home endpoint test failed"
+        curl -f http://localhost:3000
+        
+        echo ""
         
         # Test status endpoint
         echo "📊 Testing /status endpoint..."
-        curl -f http://localhost:3000/status || echo "Status endpoint test failed"
+        curl -f http://localhost:3000/status
+        
+        echo ""
         
         # Test message posting
         echo "💬 Testing message posting..."
         curl -X POST http://localhost:3000/messages \
           -H "Content-Type: application/json" \
-          -d '{"text":"Hello from GitHub Actions CI/CD!", "author":"GitHub Bot"}' \
-          -f || echo "Message post test failed"
+          -d '{"text":"Hello from GitHub Actions!", "author":"GitHub Bot"}'
           
-        echo "✅ All tests completed"
-        
-    - name: Save persistent data as artifact
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: server-artifacts
-        path: |
-          server-data.json
-          package.json
-          package-lock.json
-          server.js
-        retention-days: 30
-        
-    - name: Show final file structure
-      run: |
-        echo "📁 Final file structure:"
-        ls -la
         echo ""
-        echo "📦 Node modules created:"
-        ls node_modules/ | head -10
+        echo "✅ All tests completed"
