@@ -1,4 +1,4 @@
-name: Persistent Server with Serveo
+name: Persistent Server with Public URL
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   serveo-server:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours max
+    timeout-minutes: 360
     
     steps:
     - name: Checkout repository
@@ -17,13 +17,11 @@ jobs:
       with:
         node-version: '18'
         
-    - name: Create package.json using echo
+    - name: Create package.json
       run: |
-        echo 'Creating package.json...'
         echo '{' > package.json
         echo '  "name": "gimm-server",' >> package.json
         echo '  "version": "1.0.0",' >> package.json
-        echo '  "description": "Persistent server for GitHub Actions",' >> package.json
         echo '  "main": "server.js",' >> package.json
         echo '  "scripts": {' >> package.json
         echo '    "start": "node server.js"' >> package.json
@@ -33,325 +31,301 @@ jobs:
         echo '  }' >> package.json
         echo '}' >> package.json
         echo "✅ package.json created"
-        cat package.json
         
     - name: Install dependencies
       run: |
         npm install
         echo "✅ Dependencies installed"
         
-    - name: Create server.js using printf
+    - name: Create server.js
       run: |
-        echo "Creating server.js..."
-        printf '%s\n' \
-          'const express = require("express");' \
-          'const app = express();' \
-          'const PORT = 3000;' \
-          '' \
-          'app.use(express.json());' \
-          '' \
-          'let serverData = {' \
-          '  visitors: 0,' \
-          '  messages: [],' \
-          '  startTime: new Date().toISOString(),' \
-          '  requests: 0' \
-          '};' \
-          '' \
-          'app.use((req, res, next) => {' \
-          '  serverData.requests++;' \
-          '  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);' \
-          '  next();' \
-          '});' \
-          '' \
-          'app.get("/", (req, res) => {' \
-          '  serverData.visitors++;' \
-          '  res.json({' \
-          '    message: "🚀 Server is LIVE with Serveo!",' \
-          '    status: "ACTIVE",' \
-          '    visitors: serverData.visitors,' \
-          '    totalMessages: serverData.messages.length,' \
-          '    serverUptime: Math.floor(process.uptime()) + " seconds",' \
-          '    startTime: serverData.startTime,' \
-          '    timestamp: new Date().toISOString(),' \
-          '    endpoints: [' \
-          '      "GET  /",' \
-          '      "GET  /status",' \
-          '      "GET  /messages",' \
-          '      "POST /messages",' \
-          '      "GET  /info",' \
-          '      "GET  /health"' \
-          '    ]' \
-          '  });' \
-          '});' \
-          '' \
-          'app.get("/status", (req, res) => {' \
-          '  res.json({' \
-          '    status: "🟢 ONLINE",' \
-          '    metrics: {' \
-          '      visitors: serverData.visitors,' \
-          '      messages: serverData.messages.length,' \
-          '      totalRequests: serverData.requests,' \
-          '      uptime: Math.floor(process.uptime()) + " seconds",' \
-          '      memory: process.memoryUsage()' \
-          '    },' \
-          '    timestamp: new Date().toISOString()' \
-          '  });' \
-          '});' \
-          '' \
-          'app.get("/messages", (req, res) => {' \
-          '  res.json({' \
-          '    count: serverData.messages.length,' \
-          '    messages: serverData.messages' \
-          '  });' \
-          '});' \
-          '' \
-          'app.post("/messages", (req, res) => {' \
-          '  const { text, author = "Anonymous" } = req.body;' \
-          '  ' \
-          '  if (!text || text.trim() === "") {' \
-          '    return res.status(400).json({ ' \
-          '      error: "Message text is required",' \
-          '      example: { "text": "Hello World!", "author": "Your Name" }' \
-          '    });' \
-          '  }' \
-          '' \
-          '  const newMessage = {' \
-          '    id: Date.now(),' \
-          '    text: text.trim(),' \
-          '    author: author,' \
-          '    timestamp: new Date().toISOString()' \
-          '  };' \
-          '' \
-          '  serverData.messages.push(newMessage);' \
-          '  ' \
-          '  if (serverData.messages.length > 100) {' \
-          '    serverData.messages = serverData.messages.slice(-100);' \
-          '  }' \
-          '' \
-          '  res.json({' \
-          '    success: true,' \
-          '    message: "✅ Message saved successfully!",' \
-          '    data: newMessage,' \
-          '    totalMessages: serverData.messages.length' \
-          '  });' \
-          '});' \
-          '' \
-          'app.get("/info", (req, res) => {' \
-          '  res.json({' \
-          '    serverInfo: {' \
-          '      name: "Gimm Server",' \
-          '      version: "1.0.0",' \
-          '      nodeVersion: process.version,' \
-          '      platform: process.platform,' \
-          '      startTime: serverData.startTime,' \
-          '      uptime: Math.floor(process.uptime()) + " seconds"' \
-          '    },' \
-          '    usage: {' \
-          '      totalVisitors: serverData.visitors,' \
-          '      totalMessages: serverData.messages.length,' \
-          '      totalRequests: serverData.requests' \
-          '    }' \
-          '  });' \
-          '});' \
-          '' \
-          'app.get("/health", (req, res) => {' \
-          '  res.json({' \
-          '    status: "healthy",' \
-          '    timestamp: new Date().toISOString(),' \
-          '    uptime: process.uptime()' \
-          '  });' \
-          '});' \
-          '' \
-          'app.use("*", (req, res) => {' \
-          '  res.status(404).json({' \
-          '    error: "Endpoint not found",' \
-          '    availableEndpoints: [' \
-          '      "GET  /",' \
-          '      "GET  /status", ' \
-          '      "GET  /messages",' \
-          '      "POST /messages",' \
-          '      "GET  /info",' \
-          '      "GET  /health"' \
-          '    ]' \
-          '  });' \
-          '});' \
-          '' \
-          'console.log("🚀 Starting server...");' \
-          'app.listen(PORT, "0.0.0.0", () => {' \
-          '  console.log("✅ Server running on port " + PORT);' \
-          '  console.log("📍 Local: http://localhost:" + PORT);' \
-          '  console.log("🌐 Waiting for Serveo public URL...");' \
-          '  console.log("📊 Endpoints ready!");' \
-          '});' > server.js
-        
-        echo "✅ server.js created"
-        echo "Server file size: $(wc -l < server.js) lines"
+        cat > server.js << 'EOS'
+        const express = require("express");
+        const app = express();
+        const PORT = 3000;
 
-    - name: Install SSH and setup Serveo tunnel
+        app.use(express.json());
+
+        let serverData = {
+          visitors: 0,
+          messages: [],
+          startTime: new Date().toISOString(),
+          requests: 0
+        };
+
+        app.use((req, res, next) => {
+          serverData.requests++;
+          console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Visitor: ${serverData.visitors + 1}`);
+          next();
+        });
+
+        app.get("/", (req, res) => {
+          serverData.visitors++;
+          res.json({
+            message: "🚀 Server is LIVE with Public URL!",
+            status: "ACTIVE",
+            visitors: serverData.visitors,
+            totalMessages: serverData.messages.length,
+            serverUptime: Math.floor(process.uptime()) + " seconds",
+            startTime: serverData.startTime,
+            timestamp: new Date().toISOString(),
+            public_url: process.env.PUBLIC_URL || "http://localhost:3000"
+          });
+        });
+
+        app.get("/status", (req, res) => {
+          res.json({
+            status: "🟢 ONLINE",
+            metrics: {
+              visitors: serverData.visitors,
+              messages: serverData.messages.length,
+              totalRequests: serverData.requests,
+              uptime: Math.floor(process.uptime()) + " seconds"
+            }
+          });
+        });
+
+        app.get("/messages", (req, res) => {
+          res.json({
+            count: serverData.messages.length,
+            messages: serverData.messages
+          });
+        });
+
+        app.post("/messages", (req, res) => {
+          const { text, author = "Anonymous" } = req.body;
+          
+          if (!text || text.trim() === "") {
+            return res.status(400).json({ 
+              error: "Message text is required"
+            });
+          }
+
+          const newMessage = {
+            id: Date.now(),
+            text: text.trim(),
+            author: author,
+            timestamp: new Date().toISOString()
+          };
+
+          serverData.messages.push(newMessage);
+          
+          if (serverData.messages.length > 100) {
+            serverData.messages = serverData.messages.slice(-100);
+          }
+
+          res.json({
+            success: true,
+            message: "✅ Message saved!",
+            data: newMessage,
+            totalMessages: serverData.messages.length
+          });
+        });
+
+        app.get("/health", (req, res) => {
+          res.json({
+            status: "healthy",
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime()
+          });
+        });
+
+        console.log("🚀 Starting server...");
+        app.listen(PORT, "0.0.0.0", () => {
+          console.log("✅ Server running on port " + PORT);
+        });
+        EOS
+        echo "✅ server.js created"
+
+    - name: Install SSH and tools
       run: |
-        echo "🔧 Installing SSH client..."
+        echo "🔧 Installing required tools..."
         sudo apt-get update
-        sudo apt-get install -y openssh-client
+        sudo apt-get install -y openssh-client net-tools
         
-    - name: Start Serveo SSH Tunnel and Get URL
-      id: serveo
+    - name: Method 1 - Try localtunnel
+      id: localtunnel
+      continue-on-error: true
       run: |
-        echo "🔗 Starting Serveo SSH tunnel..."
+        echo "🔗 Trying LocalTunnel (Method 1)..."
+        npm install -g localtunnel
+        npx localtunnel --port 3000 > lt_output.txt 2>&1 &
+        LT_PID=$!
+        echo "LT_PID=$LT_PID" >> $GITHUB_ENV
+        sleep 10
         
-        # Function to start serveo and get URL
-        start_serveo() {
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R 80:localhost:3000 serveo.net 2>&1 | \
-          while IFS= read -r line; do
-            echo "Serveo: $line"
-            if echo "$line" | grep -q "forwarding"; then
-              SERVEO_URL=$(echo "$line" | grep -oE 'https://[a-zA-Z0-9.-]+\.serveo\.net')
-              echo "🎉 PUBLIC URL FOUND: $SERVEO_URL"
-              echo "SERVEO_URL=$SERVEO_URL" >> $GITHUB_ENV
-              echo "url=$SERVEO_URL" >> $GITHUB_OUTPUT
-              break
-            fi
-          done
-        }
+        if [ -f lt_output.txt ]; then
+          LT_URL=$(grep -o "https://[a-zA-Z0-9.-]*\.loca\.lt" lt_output.txt | head -1)
+          if [ -n "$LT_URL" ]; then
+            echo "🎉 LocalTunnel URL: $LT_URL"
+            echo "PUBLIC_URL=$LT_URL" >> $GITHUB_ENV
+            echo "TUNNEL_METHOD=localtunnel" >> $GITHUB_ENV
+          else
+            echo "❌ LocalTunnel failed to get URL"
+          fi
+        fi
+
+    - name: Method 2 - Try Serveo with subdomain
+      id: serveo
+      if: env.PUBLIC_URL == ''
+      continue-on-error: true
+      run: |
+        echo "🔗 Trying Serveo with custom subdomain (Method 2)..."
+        SUBDOMAIN="gimm-$(date +%s)"
+        echo "Trying subdomain: $SUBDOMAIN"
         
-        # Start in background
-        start_serveo &
+        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R ${SUBDOMAIN}:80:localhost:3000 serveo.net 2>&1 | tee serveo_output.txt &
         SERVEO_PID=$!
         echo "SERVEO_PID=$SERVEO_PID" >> $GITHUB_ENV
-        echo "Serveo tunnel PID: $SERVEO_PID"
+        sleep 15
         
-        # Wait for URL to be established
-        sleep 20
+        SERVEO_URL="https://${SUBDOMAIN}.serveo.net"
+        echo "🎉 Serveo URL: $SERVEO_URL"
+        echo "PUBLIC_URL=$SERVEO_URL" >> $GITHUB_ENV
+        echo "TUNNEL_METHOD=serveo" >> $GITHUB_ENV
+
+    - name: Method 3 - Try localhost.run
+      id: localhost_run
+      if: env.PUBLIC_URL == ''
+      continue-on-error: true
+      run: |
+        echo "🔗 Trying localhost.run (Method 3)..."
+        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R 80:localhost:3000 nokey@localhost.run 2>&1 | tee localhost_run_output.txt &
+        LHR_PID=$!
+        echo "LHR_PID=$LHR_PID" >> $GITHUB_ENV
+        sleep 15
+        
+        if [ -f localhost_run_output.txt ]; then
+          LHR_URL=$(grep -o "https://[a-zA-Z0-9.-]*\.lhr\.life" localhost_run_output.txt | head -1)
+          if [ -n "$LHR_URL" ]; then
+            echo "🎉 localhost.run URL: $LHR_URL"
+            echo "PUBLIC_URL=$LHR_URL" >> $GITHUB_ENV
+            echo "TUNNEL_METHOD=localhost_run" >> $GITHUB_ENV
+          fi
+        fi
 
     - name: Start Node.js Server
       run: |
         echo "🚀 Starting Node.js server..."
-        npm start &
+        PUBLIC_URL="$PUBLIC_URL" npm start &
         SERVER_PID=$!
         echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-        echo "Server PID: $SERVER_PID"
         sleep 8
+        echo "✅ Server started with PID: $SERVER_PID"
 
-    - name: Test Server Endpoints
+    - name: Test Connection
       run: |
-        echo "🧪 Testing server endpoints..."
+        echo "🧪 Testing server connection..."
         
-        if [ -n "$SERVEO_URL" ]; then
-          echo "🌐 Testing via Serveo URL: $SERVEO_URL"
-          
-          # Test main endpoint
-          echo "1. Testing GET /"
-          curl -s -f "$SERVEO_URL/" || echo "Main endpoint test failed"
-          echo ""
-          
-          sleep 2
-          
-          # Test status endpoint
-          echo "2. Testing GET /status"
-          curl -s -f "$SERVEO_URL/status" || echo "Status endpoint test failed"
-          echo ""
-          
-          sleep 2
-          
-          # Test health endpoint
-          echo "3. Testing GET /health"
-          curl -s -f "$SERVEO_URL/health" || echo "Health endpoint test failed"
-          echo ""
-          
-          sleep 2
-          
-          # Test message posting
-          echo "4. Testing POST /messages"
-          curl -s -X POST "$SERVEO_URL/messages" \
-            -H "Content-Type: application/json" \
-            -d '{"text":"Server is successfully deployed with Serveo! 🎉", "author":"System"}' || \
-          echo "Message post test failed"
-          echo ""
-          
+        # Test local first
+        echo "1. Testing local connection..."
+        LOCAL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || echo "failed")
+        echo "Local health check: $LOCAL_STATUS"
+        
+        if [ "$LOCAL_STATUS" = "200" ]; then
+          echo "✅ Local server is working"
+          curl -s http://localhost:3000/ | grep -o '"message":"[^"]*"'
         else
-          echo "❌ Serveo URL not available, testing locally..."
-          curl -s http://localhost:3000 || echo "Local test failed"
+          echo "❌ Local server not responding"
+          exit 1
+        fi
+        
+        # Test public URL if available
+        if [ -n "$PUBLIC_URL" ]; then
+          echo "2. Testing public URL: $PUBLIC_URL"
+          sleep 10
+          PUBLIC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PUBLIC_URL/health" || echo "failed")
+          echo "Public health check: $PUBLIC_STATUS"
+          
+          if [ "$PUBLIC_STATUS" = "200" ]; then
+            echo "✅ Public URL is working!"
+            curl -s "$PUBLIC_URL/" | grep -o '"message":"[^"]*"'
+            
+            # Test message posting
+            echo "3. Testing message API..."
+            curl -X POST "$PUBLIC_URL/messages" \
+              -H "Content-Type: application/json" \
+              -d '{"text":"Test message from GitHub Actions!", "author":"GitHub Bot"}' \
+              -s | grep -o '"success":[^,]*'
+          else
+            echo "⚠️ Public URL not accessible yet, but local server is running"
+          fi
         fi
 
-    - name: Display Public Access Information
+    - name: Display Final Results
       run: |
         echo ""
         echo "🎉 ==================================================="
-        echo "🎉         SERVER DEPLOYMENT SUCCESSFUL!"
+        echo "🎉         SERVER DEPLOYMENT COMPLETE!"
         echo "🎉 ==================================================="
         echo ""
         
-        if [ -n "$SERVEO_URL" ]; then
+        if [ -n "$PUBLIC_URL" ]; then
           echo "🌐 YOUR PUBLIC SERVER URL:"
-          echo "   $SERVEO_URL"
+          echo "   $PUBLIC_URL"
+          echo ""
+          echo "📊 Connection Method: $TUNNEL_METHOD"
           echo ""
           echo "📚 AVAILABLE ENDPOINTS:"
-          echo "   $SERVEO_URL/"
-          echo "   $SERVEO_URL/status"
-          echo "   $SERVEO_URL/messages"
-          echo "   $SERVEO_URL/info" 
-          echo "   $SERVEO_URL/health"
+          echo "   $PUBLIC_URL/"
+          echo "   $PUBLIC_URL/status"
+          echo "   $PUBLIC_URL/messages"
+          echo "   $PUBLIC_URL/health"
           echo ""
-          echo "🛠️ QUICK TEST COMMANDS:"
-          echo "   curl $SERVEO_URL/"
-          echo "   curl $SERVEO_URL/status"
-          echo "   curl $SERVEO_URL/messages"
-          echo "   curl -X POST $SERVEO_URL/messages \\"
+          echo "🛠️ TEST COMMANDS:"
+          echo "   curl $PUBLIC_URL/"
+          echo "   curl $PUBLIC_URL/status"
+          echo "   curl -X POST $PUBLIC_URL/messages \\"
           echo "     -H 'Content-Type: application/json' \\"
           echo "     -d '{\"text\":\"Hello World!\", \"author\":\"YourName\"}'"
         else
-          echo "❌ No public URL available. Using localhost:"
+          echo "❌ No public URL obtained"
+          echo "📍 Local server is running at:"
           echo "   http://localhost:3000"
+          echo ""
+          echo "⚠️ Try running the workflow again"
         fi
         
         echo ""
         echo "⏰ SERVER STATUS:"
         echo "   ✅ Node.js Server: RUNNING"
-        echo "   ✅ SSH Tunnel: ACTIVE" 
+        echo "   🔗 Tunnel Method: ${TUNNEL_METHOD:-none}"
         echo "   🕒 Duration: Up to 6 hours"
         echo ""
-        echo "🔍 MONITORING:"
-        echo "   Check workflow logs for real-time output"
+        echo "🔍 REAL-TIME LOGS:"
+        echo "   Check workflow logs above for visitor activity"
         echo ""
-        echo "🎉 ==================================================="
-        echo "   Share the URL with others to test your server!"
         echo "🎉 ==================================================="
 
-    - name: Keep Server Running
+    - name: Keep Alive with Monitoring
       run: |
-        echo "🔄 Server and SSH tunnel are now running..."
-        echo "⏰ Started at: $(date)"
-        echo "🛑 To stop manually, cancel this workflow in GitHub Actions"
-        echo ""
-        echo "📊 Monitoring server activity..."
+        echo "🔄 Server monitoring started..."
+        echo "⏰ Start time: $(date)"
+        echo "📈 Visitor counter will update in real-time"
         
-        # Show initial test
-        if [ -n "$SERVEO_URL" ]; then
-          echo "🔍 Initial health check:"
-          curl -s "$SERVEO_URL/health" || echo "Health check failed"
-          echo ""
-        fi
-        
-        # Counter to show server is alive
         COUNTER=0
-        while [ $COUNTER -lt 360 ]; do  # 6 hours max
-          sleep 60
+        while [ $COUNTER -lt 360 ]; do
+          sleep 30
           COUNTER=$((COUNTER + 1))
-          MINUTES=$((COUNTER))
-          echo "⏱️ Server has been running for $MINUTES minutes..."
+          MINUTES=$((COUNTER / 2))
           
-          # Test server health periodically
-          if [ $((COUNTER % 10)) -eq 0 ] && [ -n "$SERVEO_URL" ]; then
-            echo "🔍 Health check: $(curl -s "$SERVEO_URL/health" | grep -o '"status":"[^"]*"' || echo "status:unknown")"
+          # Show status every 2 minutes
+          if [ $((COUNTER % 4)) -eq 0 ]; then
+            echo "⏱️ Running for ${MINUTES} minutes - Visitors: $(curl -s http://localhost:3000/ 2>/dev/null | grep -o '"visitors":[0-9]*' | cut -d: -f2 || echo "?")"
+          fi
+          
+          # Test public URL periodically if available
+          if [ -n "$PUBLIC_URL" ] && [ $((COUNTER % 10)) -eq 0 ]; then
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PUBLIC_URL/health" 2>/dev/null || echo "failed")
+            echo "🌐 Public URL status: $STATUS"
           fi
         done
-        
-        echo "🕒 6-hour time limit reached, stopping server..."
 
-    - name: Cleanup
+    - name: Final Cleanup
       if: always()
       run: |
-        echo "🧹 Cleaning up processes..."
-        # Kill processes
-        pkill -f "node server.js" || true
-        pkill -f "ssh.*serveo.net" || true
-        echo "✅ Cleanup completed"
+        echo "🧹 Final cleanup..."
+        pkill -f "node" || true
+        pkill -f "ssh" || true
+        pkill -f "lt" || true
+        echo "✅ All processes stopped"
